@@ -1,53 +1,205 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-    <title>Dashboard Penelusuran Aset Pidsus</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <title>Dasbor Pemulihan Aset - Kejaksaan Negeri Manggarai Barat</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
     <style>
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; height: 100vh; overflow: hidden; }
-        #map { width: 70%; height: 100%; }
-        #sidebar { width: 30%; height: 100%; background: #f8f9fa; overflow-y: auto; display: flex; flex-direction: column; border-left: 2px solid #ccc; }
-        .header { background: #2c3e50; color: white; padding: 15px; text-align: center; }
-        .search-container { padding: 15px; background: #ecf0f1; border-bottom: 1px solid #bdc3c7; }
-        #searchInput { width: 90%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; }
-        .list-group { list-style: none; padding: 0; margin: 0; }
-        .list-item { padding: 15px; border-bottom: 1px solid #ddd; cursor: pointer; transition: background 0.2s; }
-        .list-item:hover { background: #e0e0e0; }
-        .item-name { font-weight: bold; color: #2c3e50; font-size: 1.1em; }
-        .item-address { font-size: 0.85em; color: #555; margin-top: 5px; }
-        .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.75em; color: white; margin-top: 8px; }
-        .badge.red { background: #e74c3c; }
-        .badge.orange { background: #e67e22; }
-        .badge.blue { background: #3498db; }
+        :root {
+            --kejaksaan-green: #0a6b32; /* Hijau Khas Kejaksaan */
+            --kejaksaan-gold: #b38f00;
+            --primary-dark: #1a252f;
+            --accent-red: #d32f2f;
+            --accent-orange: #f57c00;
+            --accent-blue: #1976d2;
+            --bg-light: #f4f6f9;
+            --text-dark: #333;
+            --text-light: #fff;
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg-light);
+            display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden;
+            color: var(--text-dark);
+        }
+
+        /* --- HEADER --- */
+        header {
+            background-color: var(--primary-dark);
+            color: var(--text-light);
+            padding: 10px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 4px solid var(--kejaksaan-gold);
+            z-index: 1000; box-shadow: var(--shadow-md);
+        }
+
+        header .title-group { display: flex; align-items: center; gap: 15px; }
+        header img { height: 50px; } /* Placeholder Logo */
+        header h1 { margin: 0; font-size: 1.4em; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        header h2 { margin: 0; font-size: 1.1em; font-weight: 400; color: #bdc3c7; }
+
+        /* --- SUMMARY STATS --- */
+        .stats-container { display: flex; gap: 10px; }
+        .stat-box {
+            background: rgba(255,255,255,0.1);
+            padding: 5px 15px; border-radius: 8px; text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .stat-val { font-size: 1.3em; font-weight: 700; color: var(--kejaksaan-gold); }
+        .stat-label { font-size: 0.7em; text-transform: uppercase; color: #ccc; }
+
+        /* --- MAIN CONTENT LAYOUT --- */
+        .main-wrapper {
+            display: flex; flex: 1; min-height: 0; /* Important for flex scrolling */
+        }
+
+        #map { flex: 2; height: 100%; z-index: 1; }
+
+        /* --- SIDEBAR --- */
+        #sidebar {
+            flex: 1; max-width: 420px; min-width: 320px;
+            background: #fff; display: flex; flex-direction: column;
+            border-left: 1px solid #ddd; z-index: 2; box-shadow: -2px 0 10px rgba(0,0,0,0.05);
+        }
+
+        .search-area {
+            padding: 15px; background: #fff;
+            border-bottom: 1px solid #eee;
+            position: sticky; top: 0; z-index: 10;
+        }
+        .search-area input {
+            width: 100%; padding: 12px;
+            border-radius: 25px; border: 1px solid #ccc;
+            font-size: 1em; background-color: #fafafa;
+            transition: all 0.2s; box-sizing: border-box;
+        }
+        .search-area input:focus {
+            border-color: var(--kejaksaan-green);
+            background-color: #fff; outline: none;
+            box-shadow: 0 0 0 3px rgba(10, 107, 50, 0.15);
+        }
+
+        /* --- TARGET LIST --- */
+        #targetList {
+            list-style: none; padding: 10px; margin: 0;
+            overflow-y: auto; flex: 1; /* Scrollable area */
+            background-color: #f9f9f9;
+        }
+
+        .target-card {
+            background: #fff; border-radius: 10px;
+            padding: 15px; margin-bottom: 10px;
+            cursor: pointer; border: 1px solid #eee;
+            transition: all 0.2s ease;
+            position: relative; overflow: hidden;
+        }
+        .target-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border-color: #ddd;
+        }
+        .target-card.active {
+            border-color: var(--kejaksaan-green);
+            background-color: rgba(10, 107, 50, 0.03);
+            border-left: 5px solid var(--kejaksaan-green);
+        }
+
+        /* Priority Indicator Stripe */
+        .priority-stripe {
+            position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+        }
+
+        .card-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px; }
+        .target-name { font-weight: 700; font-size: 1.1em; color: var(--primary-dark); }
+        
+        .card-body { font-size: 0.9em; color: #555; line-height: 1.4; }
+        .info-row { margin-bottom: 4px; display: flex; gap: 5px; }
+        .info-label { font-weight: 500; color: #7f8c8d; min-width: 35px; }
+
+        .badge {
+            display: inline-block; padding: 4px 10px;
+            border-radius: 15px; font-size: 0.7em; font-weight: 700;
+            color: white; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        /* Popup Styling */
+        .leaflet-popup-content-wrapper { border-radius: 8px; padding: 5px; }
+        .leaflet-popup-content b { font-size: 1.1em; color: var(--primary-dark); }
+        .popup-address { font-size: 0.9em; color: #666; margin-top: 5px; }
+        .popup-nik { font-size: 0.9em; font-weight: bold; margin-top: 5px; color: var(--kejaksaan-green); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-wrapper { flex-direction: column-reverse; }
+            #sidebar { max-width: 100%; width: 100%; height: 40vh; border-left: none; border-top: 2px solid #ccc; }
+            #map { height: 60vh; flex: none; }
+            header h1 { font-size: 1.1em; }
+            header h2 { font-size: 0.9em; }
+            .stats-container { display: none; } /* Hide stats on mobile header */
+        }
     </style>
 </head>
 <body>
 
-    <div id="map"></div>
+    <header>
+        <div class="title-group">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/4/46/Logo_Kejaksaan_Republik_Indonesia.png" alt="Logo Kejaksaan">
+            <div>
+                <h1>Pidsus Manggarai Barat</h1>
+                <h2>Dasbor Pemulihan Aset</h2>
+            </div>
+        </div>
+        <div class="stats-container">
+            <div class="stat-box">
+                <div class="stat-val" id="totalTargets">0</div>
+                <div class="stat-label">Total</div>
+            </div>
+            <div class="stat-box" style="border-color: var(--accent-red);">
+                <div class="stat-val" style="color: var(--accent-red);" id="ring1Targets">0</div>
+                <div class="stat-label">Ring 1</div>
+            </div>
+        </div>
+    </header>
     
-    <div id="sidebar">
-        <div class="header">
-            <h3>Daftar Target Aset</h3>
-            <p style="font-size: 0.8em; margin:0;">Klik nama untuk melihat di peta</p>
+    <div class="main-wrapper">
+        <div id="map"></div>
+        
+        <div id="sidebar">
+            <div class="search-area">
+                <input type="text" id="searchInput" placeholder="Cari nama, NIK, atau kecamatan..." onkeyup="filterList()">
+            </div>
+            <ul id="targetList">
+                </ul>
         </div>
-        <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Cari nama atau alamat..." onkeyup="filterList()">
-        </div>
-        <ul class="list-group" id="targetList">
-            </ul>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
     <script>
-        var map = L.map('map').setView([-8.4964, 119.8877], 10);
+        // --- KONFIGURASI PETA ---
+        var map = L.map('map', {
+            zoomControl: false // Kita pindahkan posisi zoom nanti
+        }).setView([-8.4964, 119.8877], 11); // Fokus ke Labuan Bajo
 
+        L.control.zoom({ position: 'bottomleft' }).addTo(map); // Zoom di kiri bawah agar tak tertutup sidebar mobile
+
+        // Base Map: OpenStreetMap (Standard Street Map)
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19, attribution: '&copy; OpenStreetMap'
+            maxZoom: 19, attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        // Data Lengkap Target (Koordinat diberi sedikit offset acak agar pin tidak menumpuk di 1 titik)
+        // --- DATA TARGET (SAMA SEPERTI SEBELUMNYA) ---
         var dataTarget = [
             { nama: "Abdullah Nur", alamat: "Lingkungan I RT.003/RW.002, Kel. Labuan Bajo, Kec. Komodo", nik: "531505311266001", baseLat: -8.4964, baseLon: 119.8877, color: "red", kat: "Ring 1" },
             { nama: "Afrizal alias Unyil", alamat: "Kampung Ujung RT.004/RW.002, Kel. Labuan Bajo, Kec. Komodo", nik: "-", baseLat: -8.4964, baseLon: 119.8877, color: "red", kat: "Ring 1" },
@@ -70,64 +222,100 @@
             { nama: "Ferdinandus Jegambut", alamat: "Bola RT.004/RW.002, Desa Welak, Kec. Welak", nik: "5315072710860002", baseLat: -8.5667, baseLon: 120.0667, color: "orange", kat: "Ring 2" },
             { nama: "Abdul Kader", alamat: "Nangakantor, Desa Nangakantor Barat, Kec. Mancang Pacar", nik: "-", baseLat: -8.3167, baseLon: 120.1500, color: "orange", kat: "Ring 2" },
             { nama: "Petrus Danggut", alamat: "Bilas RT.003/RW.001, Kel. Pau, Kec. Langke Rembong", nik: "5310120507690003", baseLat: -8.6111, baseLon: 120.4667, color: "orange", kat: "Ring 2" },
-            { nama: "Marthen Ndeo", alamat: "Kelurahan Sikumana RT.025/RW.010, Kota Kupang", nik: "53710424085900004", baseLat: -10.1772, baseLon: 123.6070, color: "blue", kat: "Ring 3 (Luar Pulau)" },
-            { nama: "I Putu Suta Suyasa, S.T.", alamat: "Banjar Belah, Desa Luwus, Kec. Baturiti, Kab. Tabanan", nik: "-", baseLat: -8.4495, baseLon: 115.0615, color: "blue", kat: "Ring 3 (Bali)" },
-            { nama: "Ary Andi Masbah", alamat: "Jl. Baronang III, Kel. Kalumeme, Kec. Ujung Bulu, Kab. Bulukumba", nik: "7302022206780002", baseLat: -5.5577, baseLon: 120.1873, color: "blue", kat: "Ring 3 (Sulsel)" },
-            { nama: "Muhammad Achyar", alamat: "Perumahan Sakura Regency 2, Bojong Kulur, Gunung Putri, Bogor", nik: "-", baseLat: -6.5971, baseLon: 106.7900, color: "blue", kat: "Ring 3 (Jabar)" },
-            { nama: "Hamdani", alamat: "Jl. Sandi Hasan No.99, Tanjung Senang, Bandar Lampung", nik: "1871110401740002", baseLat: -5.4500, baseLon: 105.2667, color: "blue", kat: "Ring 3 (Lampung)" },
-            { nama: "Sunarto, S.E.", alamat: "Jl. P. Tirtayasa Perum Wijaya III, Sukabumi Indah, Bandar Lampung", nik: "-", baseLat: -5.4500, baseLon: 105.2667, color: "blue", kat: "Ring 3 (Lampung)" },
-            { nama: "Yudi Hermawan, A.Md.", alamat: "Jln. Sultan Badarrudin 2, Susunan Baru, Bandar Lampung", nik: "-", baseLat: -5.4500, baseLon: 105.2667, color: "blue", kat: "Ring 3 (Lampung)" }
+            { nama: "Marthen Ndeo", alamat: "Kelurahan Sikumana RT.025/RW.010, Kota Kupang", nik: "53710424085900004", baseLat: -10.1772, baseLon: 123.6070, color: "blue", kat: "Ring 3" },
+            { nama: "I Putu Suta Suyasa, S.T.", alamat: "Banjar Belah, Desa Luwus, Kec. Baturiti, Kab. Tabanan", nik: "-", baseLat: -8.4495, baseLon: 115.0615, color: "blue", kat: "Ring 3" },
+            { nama: "Ary Andi Masbah", alamat: "Jl. Baronang III, Kel. Kalumeme, Kec. Ujung Bulu, Kab. Bulukumba", nik: "7302022206780002", baseLat: -5.5577, baseLon: 120.1873, color: "blue", kat: "Ring 3" },
+            { nama: "Muhammad Achyar", alamat: "Perumahan Sakura Regency 2, Bojong Kulur, Bogor", nik: "-", baseLat: -6.5971, baseLon: 106.7900, color: "blue", kat: "Ring 3" },
+            { nama: "Hamdani", alamat: "Jl. Sandi Hasan No.99, Tanjung Senang, Bandar Lampung", nik: "1871110401740002", baseLat: -5.4500, baseLon: 105.2667, color: "blue", kat: "Ring 3" },
+            { nama: "Sunarto, S.E.", alamat: "Jl. P. Tirtayasa Perum Wijaya III, Sukabumi Indah, Bandar Lampung", nik: "-", baseLat: -5.4500, baseLon: 105.2667, color: "blue", kat: "Ring 3" },
+            { nama: "Yudi Hermawan, A.Md.", alamat: "Jln. Sultan Badarrudin 2, Susunan Baru, Bandar Lampung", nik: "-", baseLat: -5.4500, baseLon: 105.2667, color: "blue", kat: "Ring 3" }
         ];
 
-        var markers = [];
+        // --- INISIALISASI DASBOR ---
         var listContainer = document.getElementById('targetList');
+        var cardObjects = [];
+        var ring1Count = 0;
+
+        // Hitung Statistik Awal
+        document.getElementById('totalTargets').innerText = dataTarget.length;
 
         dataTarget.forEach(function(item, index) {
-            // Beri offset acak sangat kecil agar marker di wilayah sama tidak saling tumpuk 100%
-            var lat = item.baseLat + (Math.random() - 0.5) * 0.015;
-            var lon = item.baseLon + (Math.random() - 0.5) * 0.015;
+            // 1. Koordinat dengan Offset Acak (Agar Pin Tidak Menumpuk)
+            var lat = item.baseLat + (Math.random() - 0.5) * 0.012;
+            var lon = item.baseLon + (Math.random() - 0.5) * 0.012;
 
-            var markerColor = item.color === 'red' ? '#e74c3c' : item.color === 'orange' ? '#e67e22' : '#3498db';
+            // 2. Tentukan Warna & Statistik
+            var colorMap = {
+                'red': { hex: '#d32f2f', label: 'Ring 1 (Prioritas)' },
+                'orange': { hex: '#f57c00', label: 'Ring 2 (Sedang)' },
+                'blue': { hex: '#1976d2', label: 'Ring 3 (Luar Wilayah)' }
+            };
+            var config = colorMap[item.color];
+            if(item.color === 'red') ring1Count++;
 
+            // 3. Tambahkan Marker (Pin) ke Peta
             var marker = L.circleMarker([lat, lon], {
-                color: 'black', weight: 1, fillColor: markerColor, fillOpacity: 0.9, radius: 8
+                color: '#fff', weight: 2, fillColor: config.hex, fillOpacity: 0.9, radius: 9, elevation: 5
             }).addTo(map);
 
-            var popupContent = `<b>${item.nama}</b><br><small>${item.alamat}</small><br><b>NIK:</b> ${item.nik}`;
+            // Popup Marker
+            var popupContent = `
+                <b>${item.nama}</b>
+                <div class="popup-address">${item.alamat}</div>
+                <div class="popup-nik">NIK: ${item.nik}</div>
+            `;
             marker.bindPopup(popupContent);
-            markers.push({ id: index, marker: marker, data: item });
 
-            // Buat List HTML
+            // 4. Buat Desain Card untuk Daftar Sidebar
             var li = document.createElement('li');
-            li.className = 'list-item';
-            li.id = 'item-' + index;
+            li.className = 'target-card';
+            li.id = 'target-' + index;
             li.innerHTML = `
-                <div class="item-name">${item.nama}</div>
-                <div class="item-address">${item.alamat}</div>
-                <span class="badge ${item.color}">${item.kat}</span>
+                <div class="priority-stripe" style="background-color: ${config.hex};"></div>
+                <div class="card-header">
+                    <div class="target-name">${item.nama}</div>
+                    <span class="badge" style="background-color: ${config.hex};">${item.kat}</span>
+                </div>
+                <div class="card-body">
+                    <div class="info-row"><span class="info-label">NIK:</span> <span>${item.nik}</span></div>
+                    <div class="info-row"><span class="info-label">Alat:</span> <span>${item.alamat}</span></div>
+                </div>
             `;
             
-            // Event klik pada list untuk zoom ke map
+            // 5. Event Klik Card: Zoom Peta & Highlight Card
             li.onclick = function() {
-                map.setView([lat, lon], 16); // Zoom level 16
+                // Zoom & Arahkan Peta
+                map.setView([lat, lon], 17, { animate: true, duration: 1 }); 
                 marker.openPopup();
+
+                // Highlight Card yang aktif
+                document.querySelectorAll('.target-card').forEach(c => c.classList.remove('active'));
+                li.classList.add('active');
             };
+
             listContainer.appendChild(li);
+
+            // Simpan referensi untuk fitur pencarian
+            cardObjects.push({ id: index, marker: marker, li: li, data: item });
         });
 
-        // Fitur Pencarian
+        // Update Counter Ring 1 di Header
+        document.getElementById('ring1Targets').innerText = ring1Count;
+
+        // --- FITUR PENCARIAN & FILTER ---
         function filterList() {
             var input = document.getElementById('searchInput').value.toLowerCase();
-            var items = listContainer.getElementsByClassName('list-item');
             
-            for (var i = 0; i < items.length; i++) {
-                var text = items[i].innerText.toLowerCase();
+            cardObjects.forEach(function(obj) {
+                var text = (obj.data.nama + obj.data.alamat + obj.data.nik).toLowerCase();
                 if (text.includes(input)) {
-                    items[i].style.display = "";
+                    obj.li.style.display = ""; // Tampilkan card
+                    obj.marker.addTo(map);      // Tampilkan pin
                 } else {
-                    items[i].style.display = "none";
+                    obj.li.style.display = "none"; // Sembunyikan card
+                    map.removeLayer(obj.marker);    // Sembunyikan pin
                 }
-            }
+            });
         }
     </script>
 </body>
