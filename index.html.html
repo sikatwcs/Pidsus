@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard Penelusuran Aset Pidsus</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        #map { width: 70%; height: 100%; }
+        #sidebar { width: 30%; height: 100%; background: #f8f9fa; overflow-y: auto; display: flex; flex-direction: column; border-left: 2px solid #ccc; }
+        .header { background: #2c3e50; color: white; padding: 15px; text-align: center; }
+        .search-container { padding: 15px; background: #ecf0f1; border-bottom: 1px solid #bdc3c7; }
+        #searchInput { width: 90%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; }
+        .list-group { list-style: none; padding: 0; margin: 0; }
+        .list-item { padding: 15px; border-bottom: 1px solid #ddd; cursor: pointer; transition: background 0.2s; }
+        .list-item:hover { background: #e0e0e0; }
+        .item-name { font-weight: bold; color: #2c3e50; font-size: 1.1em; }
+        .item-address { font-size: 0.85em; color: #555; margin-top: 5px; }
+        .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.75em; color: white; margin-top: 8px; }
+        .badge.red { background: #e74c3c; }
+        .badge.orange { background: #e67e22; }
+        .badge.blue { background: #3498db; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+    
+    <div id="sidebar">
+        <div class="header">
+            <h3>Daftar Target Aset</h3>
+            <p style="font-size: 0.8em; margin:0;">Klik nama untuk melihat di peta</p>
+        </div>
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Cari nama atau alamat..." onkeyup="filterList()">
+        </div>
+        <ul class="list-group" id="targetList">
+            </ul>
+    </div>
+
+    <script>
+        var map = L.map('map').setView([-8.4964, 119.8877], 10);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        // Data Lengkap Target (Koordinat diberi sedikit offset acak agar pin tidak menumpuk di 1 titik)
+        var dataTarget = [
+            { nama: "Abdullah Nur", alamat: "Lingkungan I RT.003/RW.002, Kel. Labuan Bajo, Kec. Komodo", nik: "531505311266001", baseLat: -8.4964, baseLon: 119.8877, color: "red", kat: "Ring 1" },
+            { nama: "Afrizal alias Unyil", alamat: "Kampung Ujung RT.004/RW.002, Kel. Labuan Bajo, Kec. Komodo", nik: "-", baseLat: -8.4964, baseLon: 119.8877, color: "red", kat: "Ring 1" },
+            { nama: "Ambrosius Sukur", alamat: "Gang Pengadilan RT.14/RW.15, Kel. Gorontalo, Kec. Komodo", nik: "5315052207670002", baseLat: -8.4964, baseLon: 119.8877, color: "red", kat: "Ring 1" },
+            { nama: "Dai Kayus", alamat: "Kampung Ujung RT.004/RW.002, Kel. Labuan Bajo, Kec. Komodo", nik: "315050107550135", baseLat: -8.4964, baseLon: 119.8877, color: "red", kat: "Ring 1" },
+            { nama: "Ente Puasa", alamat: "Kampung Ujung, Kel. Labuan Bajo, Kec. Komodo", nik: "5315050102280001", baseLat: -8.4964, baseLon: 119.8877, color: "red", kat: "Ring 1" },
+            { nama: "Fransiskus Carlo Manggut", alamat: "Kaper RT.009/RW.004, Desa Golo Bilas, Kec. Komodo", nik: "5315050602861001", baseLat: -8.4964, baseLon: 119.8877, color: "red", kat: "Ring 1" },
+            { nama: "Haji Sukri", alamat: "Pulau Papagarang RT.004/RW.002, Desa Papagarang, Kec. Komodo", nik: "5315050203430001", baseLat: -8.5500, baseLon: 119.7800, color: "red", kat: "Ring 1 (Kepulauan)" },
+            { nama: "Mahmud Nip", alamat: "Gorontalo RT.012/RW.004, Desa Gorontalo, Kec. Komodo", nik: "5315051202780002", baseLat: -8.4964, baseLon: 119.8877, color: "red", kat: "Ring 1" },
+            { nama: "Ramling", alamat: "Sernaru RT.004/RW.002, Kel. Wae Kelambu, Kec. Komodo", nik: "5315053112750007", baseLat: -8.4964, baseLon: 119.8877, color: "red", kat: "Ring 1" },
+            { nama: "Supardi Tahiya", alamat: "Kampung Ujung RT.002/RW.001, Kel. Labuan Bajo, Kec. Komodo", nik: "5315052712710001", baseLat: -8.4964, baseLon: 119.8877, color: "red", kat: "Ring 1" },
+            { nama: "Veronika Syukur", alamat: "Cowang Dereng RT.007/RW.002, Kel. Batu Cermin, Kec. Komodo", nik: "5315056910680001", baseLat: -8.4964, baseLon: 119.8877, color: "red", kat: "Ring 1" },
+            { nama: "Yustinus Terang", alamat: "Jalan Pantai Pede RT.005/RW.003, Kel. Gorontalo, Kec. Komodo", nik: "53150525504770007", baseLat: -8.4964, baseLon: 119.8877, color: "red", kat: "Ring 1" },
+            { nama: "Aloysius Nasus", alamat: "Kaung RT.001/RW.002, Kel. Golo Lujang, Kec. Boleng", nik: "5315060107670053", baseLat: -8.4167, baseLon: 120.0000, color: "orange", kat: "Ring 2" },
+            { nama: "Emilianus Susanto", alamat: "Lesem RT.003/RW.001, Desa Golo Lujang, Kec. Boleng", nik: "5315061807910003", baseLat: -8.4167, baseLon: 120.0000, color: "orange", kat: "Ring 2" },
+            { nama: "Kristoforus Onal", alamat: "Ngaet RT.002/RW.001, Kel. Golo Lujang, Kec. Boleng", nik: "-", baseLat: -8.4167, baseLon: 120.0000, color: "orange", kat: "Ring 2" },
+            { nama: "Candu Mohamad Tahir", alamat: "Nangalili RT.013/RW.007, Desa Nangalili, Kec. Lembor Selatan", nik: "-", baseLat: -8.7000, baseLon: 120.1167, color: "orange", kat: "Ring 2" },
+            { nama: "Dzulfikarno Canhir, S.Ip", alamat: "Desa Nangalili RT.013/RW.007, Kec. Lembor Selatan", nik: "-", baseLat: -8.7000, baseLon: 120.1167, color: "orange", kat: "Ring 2" },
+            { nama: "Avensius Galus, S.E.", alamat: "Lale RT.001/RW.001, Desa Lale, Kec. Welak", nik: "5315071106830001", baseLat: -8.5667, baseLon: 120.0667, color: "orange", kat: "Ring 2" },
+            { nama: "Ferdinandus Jegambut", alamat: "Bola RT.004/RW.002, Desa Welak, Kec. Welak", nik: "5315072710860002", baseLat: -8.5667, baseLon: 120.0667, color: "orange", kat: "Ring 2" },
+            { nama: "Abdul Kader", alamat: "Nangakantor, Desa Nangakantor Barat, Kec. Mancang Pacar", nik: "-", baseLat: -8.3167, baseLon: 120.1500, color: "orange", kat: "Ring 2" },
+            { nama: "Petrus Danggut", alamat: "Bilas RT.003/RW.001, Kel. Pau, Kec. Langke Rembong", nik: "5310120507690003", baseLat: -8.6111, baseLon: 120.4667, color: "orange", kat: "Ring 2" },
+            { nama: "Marthen Ndeo", alamat: "Kelurahan Sikumana RT.025/RW.010, Kota Kupang", nik: "53710424085900004", baseLat: -10.1772, baseLon: 123.6070, color: "blue", kat: "Ring 3 (Luar Pulau)" },
+            { nama: "I Putu Suta Suyasa, S.T.", alamat: "Banjar Belah, Desa Luwus, Kec. Baturiti, Kab. Tabanan", nik: "-", baseLat: -8.4495, baseLon: 115.0615, color: "blue", kat: "Ring 3 (Bali)" },
+            { nama: "Ary Andi Masbah", alamat: "Jl. Baronang III, Kel. Kalumeme, Kec. Ujung Bulu, Kab. Bulukumba", nik: "7302022206780002", baseLat: -5.5577, baseLon: 120.1873, color: "blue", kat: "Ring 3 (Sulsel)" },
+            { nama: "Muhammad Achyar", alamat: "Perumahan Sakura Regency 2, Bojong Kulur, Gunung Putri, Bogor", nik: "-", baseLat: -6.5971, baseLon: 106.7900, color: "blue", kat: "Ring 3 (Jabar)" },
+            { nama: "Hamdani", alamat: "Jl. Sandi Hasan No.99, Tanjung Senang, Bandar Lampung", nik: "1871110401740002", baseLat: -5.4500, baseLon: 105.2667, color: "blue", kat: "Ring 3 (Lampung)" },
+            { nama: "Sunarto, S.E.", alamat: "Jl. P. Tirtayasa Perum Wijaya III, Sukabumi Indah, Bandar Lampung", nik: "-", baseLat: -5.4500, baseLon: 105.2667, color: "blue", kat: "Ring 3 (Lampung)" },
+            { nama: "Yudi Hermawan, A.Md.", alamat: "Jln. Sultan Badarrudin 2, Susunan Baru, Bandar Lampung", nik: "-", baseLat: -5.4500, baseLon: 105.2667, color: "blue", kat: "Ring 3 (Lampung)" }
+        ];
+
+        var markers = [];
+        var listContainer = document.getElementById('targetList');
+
+        dataTarget.forEach(function(item, index) {
+            // Beri offset acak sangat kecil agar marker di wilayah sama tidak saling tumpuk 100%
+            var lat = item.baseLat + (Math.random() - 0.5) * 0.015;
+            var lon = item.baseLon + (Math.random() - 0.5) * 0.015;
+
+            var markerColor = item.color === 'red' ? '#e74c3c' : item.color === 'orange' ? '#e67e22' : '#3498db';
+
+            var marker = L.circleMarker([lat, lon], {
+                color: 'black', weight: 1, fillColor: markerColor, fillOpacity: 0.9, radius: 8
+            }).addTo(map);
+
+            var popupContent = `<b>${item.nama}</b><br><small>${item.alamat}</small><br><b>NIK:</b> ${item.nik}`;
+            marker.bindPopup(popupContent);
+            markers.push({ id: index, marker: marker, data: item });
+
+            // Buat List HTML
+            var li = document.createElement('li');
+            li.className = 'list-item';
+            li.id = 'item-' + index;
+            li.innerHTML = `
+                <div class="item-name">${item.nama}</div>
+                <div class="item-address">${item.alamat}</div>
+                <span class="badge ${item.color}">${item.kat}</span>
+            `;
+            
+            // Event klik pada list untuk zoom ke map
+            li.onclick = function() {
+                map.setView([lat, lon], 16); // Zoom level 16
+                marker.openPopup();
+            };
+            listContainer.appendChild(li);
+        });
+
+        // Fitur Pencarian
+        function filterList() {
+            var input = document.getElementById('searchInput').value.toLowerCase();
+            var items = listContainer.getElementsByClassName('list-item');
+            
+            for (var i = 0; i < items.length; i++) {
+                var text = items[i].innerText.toLowerCase();
+                if (text.includes(input)) {
+                    items[i].style.display = "";
+                } else {
+                    items[i].style.display = "none";
+                }
+            }
+        }
+    </script>
+</body>
+</html>
